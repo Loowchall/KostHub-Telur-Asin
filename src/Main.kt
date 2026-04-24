@@ -1,223 +1,232 @@
-// Main.kt — KostHub Sistem Manajemen Kos (Menu Interaktif)
+// ============================================================
+// KostHub - Manajemen Kos Mahasiswa
+// UTS Pemrograman Berorientasi Objek - Tema No. 8
+// ============================================================
 
-data class Kamar(
-    val nomor: Int,
-    val tipe: String,
-    val harga: Double
-)
+// ============================================================
+// CLASS: Kamar
+// ============================================================
+class Kamar(
+    val nomorKamar: Int,
+    val tipeKamar: String,
+    val hargaPerBulan: Double
+) {
+    // DATA HIDING: status tidak bisa diubah sembarangan dari luar
+    private var status: String = "Kosong"
+    private var penghuniSaatIni: String? = null
 
-class Penghuni(
+    fun getStatus(): String = status
+    fun getPenghuni(): String? = penghuniSaatIni
+
+    // CUSTOM SETTER: satu-satunya jalur resmi untuk mengisi kamar
+    fun isiKamar(namaPenyewa: String): Boolean {
+        if (status == "Terisi") {
+            println("[ERROR] Kamar $nomorKamar sudah berstatus 'Terisi' oleh $penghuniSaatIni. Pemesanan GAGAL.")
+            return false
+        }
+        status = "Terisi"
+        penghuniSaatIni = namaPenyewa
+        println("[SUKSES] Kamar $nomorKamar berhasil dipesan oleh $namaPenyewa.")
+        return true
+    }
+
+    // CUSTOM SETTER: satu-satunya jalur resmi untuk mengosongkan kamar
+    fun kosongkanKamar(): Boolean {
+        if (status == "Kosong") {
+            println("[ERROR] Kamar $nomorKamar sudah kosong.")
+            return false
+        }
+        println("[INFO] $penghuniSaatIni telah keluar dari kamar $nomorKamar.")
+        status = "Kosong"
+        penghuniSaatIni = null
+        return true
+    }
+
+    fun tampilkanInfo() {
+        println("  Kamar $nomorKamar | Tipe: $tipeKamar | Harga: Rp${hargaPerBulan}/bln | Status: $status" +
+                if (penghuniSaatIni != null) " ($penghuniSaatIni)" else "")
+    }
+}
+
+// ============================================================
+// CLASS: Penyewa
+// ============================================================
+class Penyewa(
     val nama: String,
     val nim: String,
-    private var saldo: Double
+    saldoAwal: Double
 ) {
+    // DATA HIDING: saldo TIDAK BOLEH diakses/diubah langsung dari luar
+    private var saldo: Double = saldoAwal
+
     fun getSaldo(): Double = saldo
 
-    fun bayarSewa(jumlah: Double): Boolean {
-        if (jumlah <= 0) {
-            println("Error: Jumlah bayar tidak valid")
+    // CUSTOM SETTER + VALIDASI: jalur resmi bayar sewa
+    fun bayarSewa(kamar: Kamar): Boolean {
+        // Validasi 1: kamar harus berstatus terisi oleh penyewa ini
+        if (kamar.getPenghuni() != this.nama) {
+            println("[ERROR] $nama bukan penghuni kamar ${kamar.nomorKamar}. Pembayaran GAGAL.")
             return false
         }
-        if (saldo < jumlah) {
-            println("Saldo tidak cukup! Saldo: Rp${saldo}, Tagihan: Rp${jumlah}")
+        // Validasi 2: saldo harus mencukupi
+        val tagihan = kamar.hargaPerBulan
+        if (saldo < tagihan) {
+            println("[ERROR] Saldo $nama tidak cukup! Saldo: Rp$saldo, Tagihan: Rp$tagihan. Pembayaran GAGAL.")
             return false
         }
-        saldo -= jumlah
-        println("Pembayaran berhasil! Sisa saldo: Rp${saldo}")
+        // Proses pembayaran
+        saldo -= tagihan
+        println("[SUKSES] $nama berhasil membayar sewa kamar ${kamar.nomorKamar}. " +
+                "Tagihan: Rp$tagihan | Sisa Saldo: Rp$saldo")
         return true
     }
 
-    fun topUp(jumlah: Double) {
-        if (jumlah > 0) {
-            saldo += jumlah
-            println("Top up berhasil! Saldo baru: Rp${saldo}")
+    // CUSTOM SETTER + VALIDASI: jalur resmi top up saldo
+    fun topUpSaldo(jumlah: Double): Boolean {
+        if (jumlah <= 0) {
+            println("[ERROR] Jumlah top up tidak valid (harus > 0). Top Up GAGAL.")
+            return false
         }
+        saldo += jumlah
+        println("[SUKSES] Top up Rp$jumlah berhasil. Saldo $nama sekarang: Rp$saldo")
+        return true
+    }
+
+    fun tampilkanInfo() {
+        println("  Penyewa: $nama | NIM: $nim | Saldo: Rp$saldo")
     }
 }
 
-class KostManager {
+// ============================================================
+// CLASS: BapakKos
+// ============================================================
+class BapakKos(
+    val nama: String
+) {
+    // DATA HIDING: pendapatan tidak bisa diubah sembarangan dari luar
+    private var totalPendapatan: Double = 0.0
     private val daftarKamar = mutableListOf<Kamar>()
-    private val daftarPenghuni = mutableMapOf<Int, Penghuni>()
 
+    fun getTotalPendapatan(): Double = totalPendapatan
+
+    // CUSTOM SETTER: tambah kamar lewat jalur resmi
     fun tambahKamar(kamar: Kamar) {
         daftarKamar.add(kamar)
-        println("Kamar ${kamar.nomor} (${kamar.tipe}) berhasil ditambahkan")
+        println("[INFO] Kamar ${kamar.nomorKamar} (${kamar.tipeKamar}) berhasil ditambahkan.")
     }
 
-    fun daftarkanPenghuni(nomorKamar: Int, penghuni: Penghuni): Boolean {
-        val kamar = daftarKamar.find { it.nomor == nomorKamar }
+    // CUSTOM SETTER + VALIDASI: proses pembayaran sewa
+    fun prosesPembayaranSewa(penyewa: Penyewa, kamar: Kamar): Boolean {
+        val berhasil = penyewa.bayarSewa(kamar)
+        if (berhasil) {
+            totalPendapatan += kamar.hargaPerBulan
+            println("[INFO] Pendapatan $nama bertambah Rp${kamar.hargaPerBulan}. Total: Rp$totalPendapatan")
+        }
+        return berhasil
+    }
+
+    // CUSTOM SETTER + VALIDASI: proses pemesanan kamar
+    fun prosesPemesanan(penyewa: Penyewa, nomorKamar: Int): Boolean {
+        val kamar = daftarKamar.find { it.nomorKamar == nomorKamar }
         if (kamar == null) {
-            println("Kamar $nomorKamar tidak ditemukan")
+            println("[ERROR] Kamar $nomorKamar tidak ditemukan. Pemesanan GAGAL.")
             return false
         }
-        if (daftarPenghuni.containsKey(nomorKamar)) {
-            println("Kamar $nomorKamar sudah ditempati")
-            return false
-        }
-        daftarPenghuni[nomorKamar] = penghuni
-        println("${penghuni.nama} berhasil masuk kamar $nomorKamar")
-        return true
+        return kamar.isiKamar(penyewa.nama)
     }
 
-    fun keluarkanPenghuni(nomorKamar: Int): Boolean {
-        val penghuni = daftarPenghuni.remove(nomorKamar)
-        return if (penghuni != null) {
-            println("${penghuni.nama} telah keluar dari kamar $nomorKamar")
-            true
-        } else {
-            println("Tidak ada penghuni di kamar $nomorKamar")
-            false
-        }
-    }
-
-    fun prosesPembayaran(nomorKamar: Int) {
-        val penghuni = daftarPenghuni[nomorKamar]
-        val kamar = daftarKamar.find { it.nomor == nomorKamar }
-        if (penghuni != null && kamar != null) {
-            print("Tagihan sewa kamar $nomorKamar untuk ${penghuni.nama}: ")
-            penghuni.bayarSewa(kamar.harga)
-        } else {
-            println("Data tidak ditemukan untuk kamar $nomorKamar")
-        }
-    }
-
-    fun topUpPenghuni(nomorKamar: Int, jumlah: Double) {
-        val penghuni = daftarPenghuni[nomorKamar]
-        if (penghuni != null) {
-            penghuni.topUp(jumlah)
-        } else {
-            println("Penghuni di kamar $nomorKamar tidak ditemukan")
-        }
-    }
-
-    fun cekSaldo(nomorKamar: Int) {
-        val penghuni = daftarPenghuni[nomorKamar]
-        if (penghuni != null) {
-            println("Saldo ${penghuni.nama}: Rp${penghuni.getSaldo()}")
-        } else {
-            println("Penghuni di kamar $nomorKamar tidak ditemukan")
-        }
-    }
-
-    fun tampilkanStatus() {
-        println("\n===== STATUS KOSTHUB TELUR ASIN =====")
+    fun tampilkanSemuaKamar() {
+        println("\n====== DAFTAR KAMAR KOS ${nama.uppercase()} ======")
         if (daftarKamar.isEmpty()) {
-            println("Belum ada kamar terdaftar")
+            println("  Belum ada kamar terdaftar.")
         } else {
-            daftarKamar.forEach { kamar ->
-                val penghuni = daftarPenghuni[kamar.nomor]
-                val status = if (penghuni != null) "Terisi - ${penghuni.nama}" else "Kosong"
-                println("Kamar ${kamar.nomor} (${kamar.tipe}) Rp${kamar.harga}/bln -> $status")
-            }
+            daftarKamar.forEach { it.tampilkanInfo() }
         }
-        val terisi = daftarPenghuni.size
-        val kosong = daftarKamar.size - terisi
-        println("Total: ${daftarKamar.size} kamar | Terisi: $terisi | Kosong: $kosong")
-        println("=====================================\n")
+        val terisi = daftarKamar.count { it.getStatus() == "Terisi" }
+        println("  Total: ${daftarKamar.size} kamar | Terisi: $terisi | Kosong: ${daftarKamar.size - terisi}")
+        println("  Total Pendapatan $nama: Rp$totalPendapatan")
+        println("==========================================\n")
     }
+
+    fun getKamar(nomor: Int): Kamar? = daftarKamar.find { it.nomorKamar == nomor }
 }
 
-fun tampilkanMenu() {
-    println("╔════════════════════════════════╗")
-    println("║    KOSTHUB TELUR ASIN MENU     ║")
-    println("╠════════════════════════════════╣")
-    println("║ 1. Tambah Kamar                ║")
-    println("║ 2. Daftarkan Penghuni          ║")
-    println("║ 3. Keluarkan Penghuni          ║")
-    println("║ 4. Proses Pembayaran           ║")
-    println("║ 5. Top Up Saldo                ║")
-    println("║ 6. Cek Saldo                   ║")
-    println("║ 7. Lihat Status Kamar          ║")
-    println("║ 0. Keluar                      ║")
-    println("╚════════════════════════════════╝")
-    print("Pilih menu: ")
-}
-
+// ============================================================
+// MAIN FUNCTION - SIMULASI
+// ============================================================
 fun main() {
-    val kost = KostManager()
-    val scanner = java.util.Scanner(System.`in`)
+    println("============================================================")
+    println("   KOSTHUB - SISTEM MANAJEMEN KOS MAHASISWA")
+    println("   UTS Pemrograman Berorientasi Objek - Tema No. 8")
+    println("============================================================\n")
 
-    // Data awal
-    kost.tambahKamar(Kamar(101, "Standard", 800000.0))
-    kost.tambahKamar(Kamar(102, "AC", 1200000.0))
-    kost.tambahKamar(Kamar(103, "VIP", 1800000.0))
+    // --- SETUP DATA ---
+    val bapakKos = BapakKos("Pak Budi")
+    bapakKos.tambahKamar(Kamar(101, "Standard", 800000.0))
+    bapakKos.tambahKamar(Kamar(102, "AC", 1200000.0))
+    bapakKos.tambahKamar(Kamar(103, "VIP", 1800000.0))
 
-    println("\nSelamat datang di KostHub Telur Asin!")
+    val penyewa1 = Penyewa("Andi Pratama", "04221001", 2000000.0)
+    val penyewa2 = Penyewa("Sari Dewi", "04221002", 500000.0)
+    val penyewa3 = Penyewa("Budi Santoso", "04221003", 1500000.0)
 
-    var pilihan: Int
-    do {
-        tampilkanMenu()
-        pilihan = scanner.nextInt()
-        scanner.nextLine()
+    bapakKos.tampilkanSemuaKamar()
 
-        when (pilihan) {
-            1 -> {
-                println("\n--- Tambah Kamar ---")
-                print("Nomor kamar: ")
-                val nomor = scanner.nextInt()
-                scanner.nextLine()
-                print("Tipe kamar (Standard/AC/VIP): ")
-                val tipe = scanner.nextLine()
-                print("Harga per bulan: Rp")
-                val harga = scanner.nextDouble()
-                scanner.nextLine()
-                kost.tambahKamar(Kamar(nomor, tipe, harga))
-            }
-            2 -> {
-                println("\n--- Daftarkan Penghuni ---")
-                print("Nomor kamar: ")
-                val nomorKamar = scanner.nextInt()
-                scanner.nextLine()
-                print("Nama penghuni: ")
-                val nama = scanner.nextLine()
-                print("NIM: ")
-                val nim = scanner.nextLine()
-                print("Saldo awal: Rp")
-                val saldo = scanner.nextDouble()
-                scanner.nextLine()
-                kost.daftarkanPenghuni(nomorKamar, Penghuni(nama, nim, saldo))
-            }
-            3 -> {
-                println("\n--- Keluarkan Penghuni ---")
-                print("Nomor kamar: ")
-                val nomorKamar = scanner.nextInt()
-                scanner.nextLine()
-                kost.keluarkanPenghuni(nomorKamar)
-            }
-            4 -> {
-                println("\n--- Proses Pembayaran ---")
-                print("Nomor kamar: ")
-                val nomorKamar = scanner.nextInt()
-                scanner.nextLine()
-                kost.prosesPembayaran(nomorKamar)
-            }
-            5 -> {
-                println("\n--- Top Up Saldo ---")
-                print("Nomor kamar: ")
-                val nomorKamar = scanner.nextInt()
-                scanner.nextLine()
-                print("Jumlah top up: Rp")
-                val jumlah = scanner.nextDouble()
-                scanner.nextLine()
-                kost.topUpPenghuni(nomorKamar, jumlah)
-            }
-            6 -> {
-                println("\n--- Cek Saldo ---")
-                print("Nomor kamar: ")
-                val nomorKamar = scanner.nextInt()
-                scanner.nextLine()
-                kost.cekSaldo(nomorKamar)
-            }
-            7 -> {
-                kost.tampilkanStatus()
-            }
-            0 -> {
-                println("\nTerima kasih telah menggunakan KostHub Telur Asin!")
-            }
-            else -> {
-                println("\nMenu tidak valid! Pilih 0-7")
-            }
-        }
-        println()
-    } while (pilihan != 0)
+    // ============================================================
+    // SIMULASI GAGAL 1: Pesan kamar yang sudah terisi
+    // ============================================================
+    println(">>> SIMULASI GAGAL 1: Pesan kamar yang sudah terisi <<<")
+    bapakKos.prosesPemesanan(penyewa1, 101) // Sukses pertama
+    bapakKos.prosesPemesanan(penyewa3, 101) // GAGAL - kamar sudah terisi
+    println()
+
+    // ============================================================
+    // SIMULASI GAGAL 2: Bayar sewa dengan saldo tidak cukup
+    // ============================================================
+    println(">>> SIMULASI GAGAL 2: Bayar sewa dengan saldo tidak cukup <<<")
+    bapakKos.prosesPemesanan(penyewa2, 102) // Pesan kamar 102
+    val kamar102 = bapakKos.getKamar(102)!!
+    bapakKos.prosesPembayaranSewa(penyewa2, kamar102) // GAGAL - saldo Rp500.000 < tagihan Rp1.200.000
+    println()
+
+    // ============================================================
+    // SIMULASI GAGAL 3: Bayar sewa kamar orang lain
+    // ============================================================
+    println(">>> SIMULASI GAGAL 3: Bayar sewa kamar yang bukan miliknya <<<")
+    val kamar101 = bapakKos.getKamar(101)!!
+    bapakKos.prosesPembayaranSewa(penyewa2, kamar101) // GAGAL - penyewa2 bukan penghuni kamar 101
+    println()
+
+    // ============================================================
+    // SIMULASI SUKSES 1: Bayar sewa kamar berhasil
+    // ============================================================
+    println(">>> SIMULASI SUKSES 1: Bayar sewa kamar berhasil <<<")
+    bapakKos.prosesPembayaranSewa(penyewa1, kamar101) // SUKSES - saldo Rp2.000.000 cukup
+    println()
+
+    // ============================================================
+    // SIMULASI SUKSES 2: Top up lalu bayar sewa
+    // ============================================================
+    println(">>> SIMULASI SUKSES 2: Top up saldo lalu bayar sewa <<<")
+    penyewa2.topUpSaldo(1000000.0) // Top up Rp1.000.000 → saldo jadi Rp1.500.000
+    bapakKos.prosesPembayaranSewa(penyewa2, kamar102) // SUKSES - saldo sudah cukup
+    println()
+
+    // ============================================================
+    // SIMULASI GAGAL 4: Top up dengan nominal tidak valid
+    // ============================================================
+    println(">>> SIMULASI GAGAL 4: Top up dengan nominal tidak valid <<<")
+    penyewa3.topUpSaldo(-500000.0) // GAGAL - nominal negatif
+    penyewa3.topUpSaldo(0.0)       // GAGAL - nominal nol
+    println()
+
+    // ============================================================
+    // STATUS AKHIR
+    // ============================================================
+    println(">>> STATUS AKHIR <<<")
+    bapakKos.tampilkanSemuaKamar()
+    println("Detail Saldo Penyewa:")
+    penyewa1.tampilkanInfo()
+    penyewa2.tampilkanInfo()
+    penyewa3.tampilkanInfo()
 }
